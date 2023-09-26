@@ -4,8 +4,7 @@ import android.widget.Button
 
 class BotResponse(
     var recipient: String,
-    var text:String,
-    var buttons: List<Buttons>)
+    var text:String)
 {
-    inner class Buttons(var payload: String, var title:String)
+
 }

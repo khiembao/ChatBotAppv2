@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
 
         val okHttpClient = OkHttpClient()
         val retrofit = Retrofit.Builder()
-            .baseUrl("http://localhost:5002/webhook/rest/")
+            .baseUrl("https://link/webhooks/rest/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
         else {
             Log.e("MSg", "msssage: $msg")
             editText.setText("")
-            userMessage.UserMessage("User", msg)
+            userMessage.UserMessage("user101",msg)
             showTextView(msg, USER, date.toString())
 
         }
@@ -78,14 +78,12 @@ class MainActivity : AppCompatActivity() {
                 response: Response<List<BotResponse>>
             ) {
                 if (response.body() == null || response.body()!!.size == 0) {
-                    val botMessage = "Sorry didn't understand"
+                   val botMessage = "Sorry didn't understand"
                     showTextView(botMessage, BOT, date.toString())
                 } else {
                     val botResponse = response.body()!![0]
                     showTextView(botResponse.text, BOT, date.toString())
-                    if (botResponse.buttons != null) {
-                        Log.e("Button c", "${botResponse.buttons.size}")
-                    }
+
                 }
             }
 
