@@ -2,11 +2,14 @@ package com.baokhiem.chatbotappv2
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -26,6 +29,7 @@ import java.util.Locale
 class MainActivity : AppCompatActivity() {
     private lateinit var editText: EditText
     private lateinit var sendBtn: FloatingActionButton
+    private lateinit var textToSpeech: TextToSpeech
 
     private val USER = 0
     private val BOT = 1
@@ -44,8 +48,16 @@ class MainActivity : AppCompatActivity() {
         sendBtn.setOnClickListener{
             sendMessage()
         }
-
-
+        textToSpeech = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = textToSpeech.setLanguage(Locale.US) // Chọn ngôn ngữ mặc định
+                if (result == TextToSpeech.LANG_MISSING_DATA ||
+                    result == TextToSpeech.LANG_NOT_SUPPORTED
+                ) {
+                    Log.e("TTS", "Language not supported")
+                }
+            }
+        }
     }
 
     private fun sendMessage() {
@@ -54,7 +66,7 @@ class MainActivity : AppCompatActivity() {
 
         val okHttpClient = OkHttpClient()
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://link/webhooks/rest/")
+            .baseUrl("https://ip-address/webhooks/rest/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -66,11 +78,9 @@ class MainActivity : AppCompatActivity() {
             editText.setText("")
             userMessage.UserMessage("user101",msg)
             showTextView(msg, USER, date.toString())
-
         }
         val messageSender = retrofit.create(MessageSender::class.java)
-        val response =
-            messageSender.sendMessage(userMessage)
+        val response = messageSender.sendMessage(userMessage)
 
         response.enqueue(object : Callback<List<BotResponse>> {
             override fun onResponse(
@@ -78,18 +88,19 @@ class MainActivity : AppCompatActivity() {
                 response: Response<List<BotResponse>>
             ) {
                 if (response.body() == null || response.body()!!.size == 0) {
-                   val botMessage = "Sorry didn't understand"
+                   val botMessage = "Sorry, didn't understand"
                     showTextView(botMessage, BOT, date.toString())
                 } else {
                     val botResponse = response.body()!![0]
                     showTextView(botResponse.text, BOT, date.toString())
-
+                    textToSpeech.speak(botResponse.text, TextToSpeech.QUEUE_FLUSH, null, null)
                 }
             }
 
             override fun onFailure(call: Call<List<BotResponse>>, t: Throwable) {
-                val botMessage = "Check your network connection"
+                val botMessage = "Check your internet connection"
                 showTextView(botMessage, BOT, date.toString())
+                textToSpeech.speak(botMessage, TextToSpeech.QUEUE_FLUSH, null, null)
                 t.printStackTrace()
                 Toast.makeText(this@MainActivity, "" + t.message, Toast.LENGTH_SHORT).show()
             }
@@ -99,9 +110,8 @@ class MainActivity : AppCompatActivity() {
         var frameLayout: FrameLayout? = null
         val linearLayout = findViewById<LinearLayout>(R.id.chat_layout)
         when(type){
-            USER -> { frameLayout = getUserLayout()
-            }
-            BOT ->{frameLayout = getBotLayout()
+            USER -> {
+                frameLayout = getUserLayout()
             }
             else->{
                 frameLayout = getBotLayout()
@@ -135,17 +145,20 @@ class MainActivity : AppCompatActivity() {
         val timeTextView = frameLayout?.findViewById<TextView>(R.id.message_time)
         timeTextView?.setText(time.toString())
 
-
     }
     fun getUserLayout(): FrameLayout? {
         val inflater: LayoutInflater = LayoutInflater.from(this)
         return inflater.inflate(R.layout.user_message_box, null) as FrameLayout?
     }
-
     fun getBotLayout(): FrameLayout? {
         val inflater: LayoutInflater = LayoutInflater.from(this)
         return inflater.inflate(R.layout.bot_message_box, null) as FrameLayout?
     }
-
-
+    override fun onDestroy() {
+        if (textToSpeech.isSpeaking) {
+            textToSpeech.stop()
+        }
+        textToSpeech.shutdown()
+        super.onDestroy()
+    }
 }
